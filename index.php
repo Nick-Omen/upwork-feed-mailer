@@ -1,20 +1,20 @@
 <?php
     require_once('./config.php');
     require_once('./db.php');
-    // require_once('./upwork.php');
+    require_once('./upwork.php');
 
     $cUpdated = 0;
     $cFieldsUpdated = array();
 
     if ($_POST) {
-        if ($_POST['q']) {
+        if (isset($_POST['q'])) {
             $cUpdated = $mysqli -> query("UPDATE `config` SET `value`='{$_POST['q']}' WHERE `key` = 'query'");
             $cFieldsUpdated[] = 'query';
         }
-        if ($_POST['startParse'] == 'on') {
+        if (isset($_POST['startParse']) && $_POST['startParse'] == 'on') {
             $cUpdated = $mysqli -> query("UPDATE `config` SET `value`='1' WHERE `key` = 'cron_active'");
             $cFieldsUpdated[] = 'cron_active';
-            // start_watching();
+            start_watching();
         } else {
             $cUpdated = $mysqli -> query("UPDATE `config` SET `value`='0' WHERE `key` = 'cron_active'");
             $cFieldsUpdated[] = 'cron_active';

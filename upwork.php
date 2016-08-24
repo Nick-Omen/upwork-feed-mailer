@@ -1,18 +1,17 @@
 <?php
 
-require_once('./db.php');
 require_once('./mailer.php');
 
 if (!$configs['query']) return;
-start_watching();
 
 function start_watching()
 {
     global $mysqli, $configs;
 
     $results = $mysqli->query("SELECT `value` FROM `config` WHERE `key`='cron_active'");
-    $cronActive = $results->fetch_row()[0] == '1' ? true : false;
-    if (!$cronActive) die();
+    $cronActive = false;
+    if (gettype($results) == 'object' && $results->fetch_row()[0] == '1') $cronActive = true;
+    if (!$cronActive) return;
 
     $url = "https://www.upwork.com/ab/feed/jobs/atom?contractor_tier=1%2C2&q={$configs['query']}&sort=create_time+desc&api_params=1";
     $curl_handle=curl_init();
@@ -26,15 +25,20 @@ function start_watching()
     $upworkJobs = simplexml_load_string($xmlUpworkJobs);
     // Parse upwork jobs
     $parsedUpworkJobs = parse_jobs_from_upwork($upworkJobs);
-    // Latest date
-    $latestDate = get_latest_date($parsedUpworkJobs);
-    $viewedJobsIds = get_viewed_jobs_by_date($latestDate);
-    $notViewedJobs = filter_unviewed_jobs($viewedJobsIds, $parsedUpworkJobs);
-    if (send_email($notViewedJobs)) {
-        // insert_new_jobs($notViewedJobs);
+    if (count($parsedUpworkJobs) > 0) {
+        // Latest date
+        $latestDate = get_latest_date($parsedUpworkJobs);
+        $viewedJobsIds = get_viewed_jobs_by_date($latestDate);
+        $notViewedJobs = filter_unviewed_jobs($viewedJobsIds, $parsedUpworkJobs);
+        insert_new_jobs($notViewedJobs);
+        $jobsSendIds = send_email($notViewedJobs);
+        if (strlen($jobsSendIds) > 1) {
+            set_jobs_status_send($jobsSendIds);
+        }
     }
-    // sleep(3);
-    // start_watching();
+    echo 'Requested';
+    sleep((int)$configs['sleep_seconds']);
+    start_watching();
 }
 
 // Functions
@@ -46,20 +50,22 @@ function send_email($jobs)
 {
     global $mail;
 
-    if (count($jobs) == 0) return false;
+    $str = '';
+    if (count($jobs) == 0) return '';
 
     $mailBody = '<table width="100%">';
-    foreach ($jobs as $j) {
+    foreach ($jobs as $id => $j) {
         $s = isset($j['parsed_summary']['Skills']) ? $j['parsed_summary']['Skills'] : ' - ';
         $b = isset($j['parsed_summary']['Budget']) ? $j['parsed_summary']['Budget'] : ' - ';
-        $mailBody .= "<tr><th>{$j['title']}<th><td>{$s}</td><td>{$b}</td><td><a target='_blank' href='{$j['link']}'>link</a></td></tr>";
+        $mailBody .= "<tr><th width='50%' align='left'>{$j['title']}<th><td width='32%' align='left'>{$s}</td><td width='10%' align='right'>{$b}</td><td width='8%' align='right'><a target='_blank' href='{$j['link']}'>link</a></td></tr>";
+        $str .= (string)$id.',';
     }
     $mailBody .= '</table>';
     $mail->Body = $mailBody;
 
-    if($mail->send()) return true;
+    if($mail->send()) return substr($str, 0, -1);
 
-    return false;
+    return '';
 }
 
 /**
@@ -158,7 +164,7 @@ function get_viewed_jobs_by_date($date)
 {
     global $mysqli;
 
-    $sql = "SELECT `job_id` FROM `viewed_jobs` WHERE `date` >='{$date}' ";
+    $sql = "SELECT `job_id` FROM `viewed_jobs` WHERE `date` >='{$date}' AND `send`=0";
     $jobIds = array();
     if ($results = $mysqli->query($sql)) {
         foreach ($results as $r) {
@@ -182,4 +188,12 @@ function filter_unviewed_jobs($ids, $jobs)
     return $jobs;
 }
 
-$mysqli->close();
+function set_jobs_status_send($ids)
+{
+    global $mysqli;
+
+    if (gettype($ids) != 'string') return false;
+
+    $sql = "UPDATE `viewed_jobs` SET `send` = 1 WHERE `job_id` IN ({$ids})";
+    return $mysqli->query($sql);
+}
