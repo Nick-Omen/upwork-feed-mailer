@@ -1,9 +1,8 @@
 <?php
 
 require_once('./db.php');
-require_once(dirname(__FILE__) . '/vendor/phpmailer/phpmailer/PHPMailerAutoload.php');
+require_once('./mailer.php');
 
-$configs = get_configs();
 if (!$configs['query']) return;
 start_watching();
 
@@ -11,16 +10,19 @@ function start_watching()
 {
     global $mysqli, $configs;
 
+    $results = $mysqli->query("SELECT `value` FROM `config` WHERE `key`='cron_active'");
+    $cronActive = $results->fetch_row()[0] == '1' ? true : false;
+    if (!$cronActive) die();
+
     $url = "https://www.upwork.com/ab/feed/jobs/atom?contractor_tier=1%2C2&q={$configs['query']}&sort=create_time+desc&api_params=1";
-    // $curl_handle=curl_init();
-    // curl_setopt($curl_handle, CURLOPT_URL, $url);
-    // curl_setopt($curl_handle, CURLOPT_CONNECTTIMEOUT, 2);
-    // curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, 1);
+    $curl_handle=curl_init();
+    curl_setopt($curl_handle, CURLOPT_URL, $url);
+    curl_setopt($curl_handle, CURLOPT_CONNECTTIMEOUT, 2);
+    curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, 1);
 
     // Get works as object
-    // $xmlUpworkJobs = curl_exec($curl_handle);
-    // curl_close($curl_handle);
-    $xmlUpworkJobs = file_get_contents('./atom.xml');
+    $xmlUpworkJobs = curl_exec($curl_handle);
+    curl_close($curl_handle);
     $upworkJobs = simplexml_load_string($xmlUpworkJobs);
     // Parse upwork jobs
     $parsedUpworkJobs = parse_jobs_from_upwork($upworkJobs);
@@ -28,18 +30,37 @@ function start_watching()
     $latestDate = get_latest_date($parsedUpworkJobs);
     $viewedJobsIds = get_viewed_jobs_by_date($latestDate);
     $notViewedJobs = filter_unviewed_jobs($viewedJobsIds, $parsedUpworkJobs);
-
-    sleep(3);
-    $results = $mysqli->query("SELECT `value` FROM `config` WHERE `key`='cron_active'");
-    if($results->fetch_row()[0] == '1') {
-        echo 1;
-        start_watching();
-    } else {
-        die();
+    if (send_email($notViewedJobs)) {
+        // insert_new_jobs($notViewedJobs);
     }
+    // sleep(3);
+    // start_watching();
 }
 
 // Functions
+
+/**
+ * Send email with new jobs.
+ */
+function send_email($jobs)
+{
+    global $mail;
+
+    if (count($jobs) == 0) return false;
+
+    $mailBody = '<table width="100%">';
+    foreach ($jobs as $j) {
+        $s = isset($j['parsed_summary']['Skills']) ? $j['parsed_summary']['Skills'] : ' - ';
+        $b = isset($j['parsed_summary']['Budget']) ? $j['parsed_summary']['Budget'] : ' - ';
+        $mailBody .= "<tr><th>{$j['title']}<th><td>{$s}</td><td>{$b}</td><td><a target='_blank' href='{$j['link']}'>link</a></td></tr>";
+    }
+    $mailBody .= '</table>';
+    $mail->Body = $mailBody;
+
+    if($mail->send()) return true;
+
+    return false;
+}
 
 /**
  * Find and get job ID from link.
@@ -58,7 +79,7 @@ function get_job_id($link)
  * @param $key
  * @return job summary - array
  */
-function parse_summary($summary, $key)
+function parse_summary($summary)
 {
     $filters = ['Budget','Posted','Category','Skills','Country'];
     $array = explode("<br />", $summary);
@@ -69,7 +90,7 @@ function parse_summary($summary, $key)
     foreach ($array as $aKey => $aValue) {
         foreach ($filters as $fKey => $fValue) {
             if (strpos($aValue, $fValue) !== false) {
-                $final_array[$key][$fValue] = str_replace(array($fValue,":","<b>","</b>"), '', $aValue);
+                $final_array[$fValue] = str_replace(array($fValue,":","<b>","</b>"), '', $aValue);
             }
         }
     }
@@ -92,7 +113,7 @@ function parse_jobs_from_upwork($jobs)
         $parsedJobs[$jobId]['content'] = (string)$jobs->entry[$i]->content;
         $parsedJobs[$jobId]['updated'] = (string)$jobs->entry[$i]->updated;
         $summary = (string)$jobs->entry[$i]->summary;
-        $parsedJobs[$jobId]['parsed_summary'] = parse_summary($summary, $i);
+        $parsedJobs[$jobId]['parsed_summary'] = parse_summary($summary);
     }
     return $parsedJobs;
 }
@@ -102,12 +123,13 @@ function insert_new_jobs($jobs)
     global $mysqli;
 
     $sqlInsertNewJobs = "INSERT IGNORE INTO `viewed_jobs`(`job_id`, `date`) VALUES ";
-    foreach ($sqlInsertNewJobs as $k => $v)
+    foreach ($jobs as $k => $v)
     {
         $sqlInsertNewJobs .= "('{$k}', '{$v['updated']}'),";
     }
     $sqlInsertNewJobs = substr($sqlInsertNewJobs, 0, -1);
-    $mysqli->query($sqlInsertNewJobs);
+
+    return $results = $mysqli->query($sqlInsertNewJobs);
 }
 
 /**

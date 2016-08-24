@@ -10,7 +10,7 @@ CREATE TABLE `config` (
   `value` VARCHAR(64) NOT NULL DEFAULT ""
 );
 INSERT INTO `config` VALUES
-("emails", ""),
+("emails", "nikita.omen666@gmail.com"),
 ("cron_active", "0"),
 ("sleep_seconds", "60"),
 ("query", "");
