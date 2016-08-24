@@ -35,6 +35,7 @@
                 <ul style="margin-top: 0;">
                     <?php if ($configs['query']) { ?><li><b>Current query:</b> <?php echo $configs['query']; ?></li><?php } ?>
                     <?php if ($configs['cron_active']) { $status = $configs['cron_active'] == '0' ? 'Disabled' : 'Enabled'; ?><li><b>Status:</b> <?php echo $status; ?></li><?php } ?>
+                    <?php if ($configs['latest_update']) { ?><li><b>Last update:</b> <?php echo $configs['latest_update']; ?></li><?php } ?>
                 </ul>
         </div>
         <form method="post">

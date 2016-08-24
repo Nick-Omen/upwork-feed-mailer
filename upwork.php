@@ -36,7 +36,9 @@ function start_watching()
             set_jobs_status_send($jobsSendIds);
         }
     }
-    echo 'Requested';
+    $now = new DateTime();
+    $date = "{$now->date} {$now->timezone}";
+    $mysqli->query("UPDATE `config` SET `value` ='{$date}' WHERE `key`='latest_update'");
     sleep((int)$configs['sleep_seconds']);
     start_watching();
 }

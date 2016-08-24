@@ -13,4 +13,5 @@ INSERT INTO `config` VALUES
 ("emails", "nikita.omen666@gmail.com"),
 ("cron_active", "0"),
 ("sleep_seconds", "60"),
+("latest_update", ""),
 ("query", "");
