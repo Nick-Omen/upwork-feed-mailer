@@ -22,6 +22,11 @@ function start_watching()
     // Get works as object
     $xmlUpworkJobs = curl_exec($curl_handle);
     curl_close($curl_handle);
+    
+    if(!$xmlUpworkJobs) {
+        $xmlUpworkJobs = file_get_contents($url);    
+    }
+
     $upworkJobs = simplexml_load_string($xmlUpworkJobs);
     // Parse upwork jobs
     $parsedUpworkJobs = parse_jobs_from_upwork($upworkJobs);
