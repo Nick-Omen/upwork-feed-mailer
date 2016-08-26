@@ -20,7 +20,7 @@
             $cFieldsUpdated[] = 'cron_active';
         }
     }
-
+    print_r($configs);
     $mysqli->close();
 ?>
 <!DOCTYPE html>
@@ -33,6 +33,7 @@
         <div style="margin-bottom: 20px;">
                 <h4 style="margin-bottom: 10;">Summary: </h4>
                 <ul style="margin-top: 0;">
+                    <?php if ($configs['total']) { ?><li><b>Total jobs viewed:</b> <?php echo $configs['total']; ?></li><?php } ?>
                     <?php if ($configs['query']) { ?><li><b>Current query:</b> <?php echo $configs['query']; ?></li><?php } ?>
                     <?php if ($configs['cron_active']) { $status = $configs['cron_active'] == '0' ? 'Disabled' : 'Enabled'; ?><li><b>Status:</b> <?php echo $status; ?></li><?php } ?>
                     <?php if ($configs['latest_update']) { ?><li><b>Last update:</b> <?php echo $configs['latest_update']; ?></li><?php } ?>

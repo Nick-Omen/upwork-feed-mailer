@@ -14,4 +14,5 @@ INSERT INTO `config` VALUES
 ("cron_active", "0"),
 ("sleep_seconds", "60"),
 ("latest_update", ""),
+("total", ""),
 ("query", "");

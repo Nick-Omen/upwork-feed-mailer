@@ -50,8 +50,8 @@ function start_watching()
     $now = new DateTime();
     $date = date(DATE_ATOM, $now->getTimestamp());
     $mysqli->query("UPDATE `config` SET `value` ='{$date}' WHERE `key`='latest_update'");
-//    sleep((int)$configs['sleep_seconds']);
-//    start_watching();
+    sleep((int)$configs['sleep_seconds']);
+    start_watching();
 }
 
 // Functions
@@ -251,5 +251,9 @@ function set_jobs_status_send($ids)
     global $mysqli;
 
     $sql = "UPDATE `viewed_jobs` SET `send` = 1 WHERE `job_id` IN ({$ids})";
+    $currentCount = $mysqli->query("SELECT COUNT(`job_id`) FROM `viewed_jobs`");
+    $totalCount = (int)$GLOBALS['configs']['total'] + (int)$currentCount->fetch_array()[0];
+    $mysqli->query("UPDATE `config` SET `value`='{$totalCount}' WHERE `key`='total'");
+
     return $mysqli->query($sql);
 }
