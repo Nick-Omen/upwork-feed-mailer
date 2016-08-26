@@ -20,7 +20,6 @@
             $cFieldsUpdated[] = 'cron_active';
         }
     }
-    print_r($configs);
     $mysqli->close();
 ?>
 <!DOCTYPE html>
