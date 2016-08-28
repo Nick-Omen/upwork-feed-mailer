@@ -252,8 +252,7 @@ function set_jobs_status_send($ids)
 
     $sql = "UPDATE `viewed_jobs` SET `send` = 1 WHERE `job_id` IN ({$ids})";
     $currentCount = $mysqli->query("SELECT COUNT(`job_id`) FROM `viewed_jobs`");
-    $totalCount = (int)$GLOBALS['configs']['total'] + (int)$currentCount->fetch_array()[0];
-    $mysqli->query("UPDATE `config` SET `value`='{$totalCount}' WHERE `key`='total'");
+    $mysqli->query("UPDATE `config` SET `value`='{$currentCount->fetch_array()[0]}' WHERE `key`='total'");
 
     return $mysqli->query($sql);
 }
