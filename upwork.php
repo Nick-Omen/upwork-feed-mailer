@@ -9,49 +9,54 @@ function start_watching()
 {
     $GLOBALS['configs'] = get_configs();
     
-    global $mysqli, $configs;
+    global $mysqli, $configs, $direct;
 
-    $cronActive = false;
-    $results = $mysqli->query("SELECT `value` FROM `config` WHERE `key`='cron_active'");
-    if (gettype($results) == 'object' && $results->fetch_row()[0] == '1') $cronActive = true;
-    if (!$cronActive) return;
+    // $cronActive = false;
+    // $results = $mysqli->query("SELECT `value` FROM `config` WHERE `key`='cron_active'");
+    // if (gettype($results) == 'object' && $results->fetch_row()[0] == '1') $cronActive = true;
+    // if (!$cronActive) return;
 
-    $url = "https://www.upwork.com/ab/feed/jobs/atom?contractor_tier=1%2C2&q={$configs['query']}&sort=create_time+desc&api_params=1";
-    $curl_handle=curl_init();
-    curl_setopt($curl_handle, CURLOPT_URL, $url);
-    curl_setopt($curl_handle, CURLOPT_CONNECTTIMEOUT, 2);
-    curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, 1);
+    // $url = "https://www.upwork.com/ab/feed/jobs/atom?contractor_tier=1%2C2&q={$configs['query']}&sort=create_time+desc&api_params=1";
+    // $curl_handle=curl_init();
+    // curl_setopt($curl_handle, CURLOPT_URL, $url);
+    // curl_setopt($curl_handle, CURLOPT_CONNECTTIMEOUT, 2);
+    // curl_setopt($curl_handle, CURLOPT_RETURNTRANSFER, 1);
 
-    // Get works as object
-    $xmlUpworkJobs = curl_exec($curl_handle);
-    curl_close($curl_handle);
+    // // Get works as object
+    // $xmlUpworkJobs = curl_exec($curl_handle);
+    // curl_close($curl_handle);
     
-    if(!$xmlUpworkJobs) {
-        $xmlUpworkJobs = file_get_contents($url);
-    }
+    // if(!$xmlUpworkJobs) {
+    //     $xmlUpworkJobs = file_get_contents($url);
+    // }
 
-    $upworkJobs = simplexml_load_string($xmlUpworkJobs);
-    // Parse upwork jobs
-    $parsedUpworkJobs = parse_jobs_from_upwork($upworkJobs);
+    // $upworkJobs = simplexml_load_string($xmlUpworkJobs);
+    // // Parse upwork jobs
+    // $parsedUpworkJobs = parse_jobs_from_upwork($upworkJobs);
 
-    if ($parsedUpworkJobs) {
-        // Latest date
-        $latestDate = get_latest_date($parsedUpworkJobs);
-        $viewedJobsIds = get_viewed_jobs_by_date($latestDate);
-        $notViewedJobs = filter_unviewed_jobs($viewedJobsIds, $parsedUpworkJobs);
-        if ($notViewedJobs) {
-            insert_new_jobs($notViewedJobs);
-            $jobsSendIds = send_email($notViewedJobs);
-            if ($jobsSendIds) {
-                set_jobs_status_send($jobsSendIds);
-            }
-        }
+    // if ($parsedUpworkJobs) {
+    //     // Latest date
+    //     $latestDate = get_latest_date($parsedUpworkJobs);
+    //     $viewedJobsIds = get_viewed_jobs_by_date($latestDate);
+    //     $notViewedJobs = filter_unviewed_jobs($viewedJobsIds, $parsedUpworkJobs);
+    //     if ($notViewedJobs) {
+    //         insert_new_jobs($notViewedJobs);
+    //         $jobsSendIds = send_email($notViewedJobs);
+    //         if ($jobsSendIds) {
+    //             set_jobs_status_send($jobsSendIds);
+    //         }
+    //     }
+    // }
+    // $now = new DateTime();
+    // $date = date(DATE_ATOM, $now->getTimestamp());
+    // $mysqli->query("UPDATE `config` SET `value` ='{$date}' WHERE `key`='latest_update'");
+    
+    if($direct) {
+        header('Refresh: 5');
+    } else {
+        sleep((int)$configs['sleep_seconds']);
+        start_watching();
     }
-    $now = new DateTime();
-    $date = date(DATE_ATOM, $now->getTimestamp());
-    $mysqli->query("UPDATE `config` SET `value` ='{$date}' WHERE `key`='latest_update'");
-    sleep((int)$configs['sleep_seconds']);
-    start_watching();
 }
 
 // Functions
@@ -255,4 +260,14 @@ function set_jobs_status_send($ids)
     $mysqli->query("UPDATE `config` SET `value`='{$currentCount->fetch_array()[0]}' WHERE `key`='total'");
 
     return $mysqli->query($sql);
+}
+
+function sender_status($status = 1)
+{
+    global $mysqli;
+
+    $sql  = "UPDATE `config` SET `value`='{$status}' WHERE `key` = 'cron_active'; ";
+    $sql .= "UPDATE `config` SET `value`='". date('d-m-Y H:i:s') ."' WHERE `key` = 'latest_update'";
+    $cUpdated = $mysqli -> query($sql);
+    return $cUpdated;
 }

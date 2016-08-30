@@ -6,6 +6,29 @@
     $cUpdated = 0;
     $cFieldsUpdated = array();
 
+    //Get queries should use in auto-module
+    if(isset($_GET['direct'])) {
+
+        $direct = true;
+        if(isset($_GET['stop_sender'])) {
+            sender_status(0);
+        }
+        if(isset($_GET['start_sender'])) {
+            sender_status(1);
+        }
+
+        if(isset($_GET['q'])) {
+            $cUpdated = $mysqli -> query("UPDATE `config` SET `value`='{$_GET['q']}' WHERE `key` = 'query'");
+        }
+
+        $sender_status = $mysqli->query("SELECT `value` FROM `config` WHERE `key` = 'cron_active'");
+        $sender_status = $sender_status->fetch_row()[0];
+        
+        if($sender_status) {
+            start_watching();
+        }
+    }
+
     if ($_POST) {
         if (isset($_POST['q'])) {
             $cUpdated = $mysqli -> query("UPDATE `config` SET `value`='{$_POST['q']}' WHERE `key` = 'query'");
